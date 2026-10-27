@@ -83,7 +83,7 @@ button:active{transform:scale(.98)}.primary{box-shadow:0 6px 16px rgba(91,92,226
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script>
 /* SETUP: paste your Supabase Project URL and anon/publishable key below. Never put service_role/secret keys in this file. */
-const SUPABASE_URL='YOUR_SUPABASE_PROJECT_URL'; const SUPABASE_ANON_KEY='YOUR_SUPABASE_ANON_OR_PUBLISHABLE_KEY';
+const SUPABASE_URL='https://jtyblgiyedxyeckbasti.supabase.co'; const SUPABASE_ANON_KEY='sb_publishable_Wx4gYUq62VDWpnzv9SLr9w_x2hGGBx4';
 const LIVE=!!(window.supabase&&SUPABASE_URL.startsWith('https://')&&!SUPABASE_URL.includes('YOUR_')&&SUPABASE_ANON_KEY.length>20&&!SUPABASE_ANON_KEY.includes('YOUR_'));
 const sb=LIVE?window.supabase.createClient(SUPABASE_URL,SUPABASE_ANON_KEY):null;
 const PRICES={customer:300,shopkeeper:1499};const REWARDS={customer:150,shopkeeper:500};let user=null,profile=null,page='home',authRole='customer',authMode='signup',demo=loadDemo();

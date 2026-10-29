@@ -94,7 +94,7 @@ function openAuth(role='customer',mode='signup'){
  authRole=role;authMode=mode;
  document.getElementById('modalRoot').innerHTML=`<div class="modal-back" onclick="if(event.target===this)closeModal()"><div class="modal"><div class="modal-top"><div><span class="badge">MARKETOS ACCOUNT</span><h2 style="margin-top:9px">${mode==='login'?'Welcome back':'Create your account'}</h2><div class="muted small">${LIVE?'Account access powered by Supabase':'Preview mode — connect Supabase for shared live accounts'}</div></div><button class="x" onclick="closeModal()">✕</button></div>
  <div class="tabs"><button type="button" class="tab ${role==='customer'?'active':''}" onclick="openAuth('customer','${mode}')">🛍️ Customer ${mode==='login'?'Login':'Signup'}</button><button type="button" class="tab ${role==='shopkeeper'?'active':''}" onclick="openAuth('shopkeeper','${mode}')">🏪 Shopkeeper ${mode==='login'?'Login':'Signup'}</button></div>
- <form onsubmit="authSubmit(event)"><div class="field"><label class="label">Email address</label><input id="authEmail" type="email" required autocomplete="email" placeholder="you@example.com"></div><div class="field"><label class="label">Password (minimum 8 characters)</label><input id="authPassword" type="password" required minlength="8" autocomplete="${mode==='login'?'current-password':'new-password'}" placeholder="Enter your password"></div><div id="signupFields" class="${mode==='login'?'hidden':''}"><div class="field"><label class="label">Full name</label><input id="authName" placeholder="Your full name" ${mode==='signup'?'required':''}></div>${role==='shopkeeper'?'<div class="field"><label class="label">Shop name</label><input id="authShop" placeholder="Your business / shop name" required></div>':''}<div class="field"><label class="label">Referral code (optional)</label><input id="authReferral" placeholder="Referral code"></div></div>
+ <form onsubmit="authSubmit(event)"><div class="field"><label class="label">Mobile number</label><input id="authPhone" type="tel" inputmode="numeric" pattern="[0-9+() -]{10,16}" maxlength="16" required autocomplete="tel" placeholder="Enter mobile number" title="Enter your 10-digit mobile number"></div><div class="field"><label class="label">Password (minimum 8 characters)</label><input id="authPassword" type="password" required minlength="8" autocomplete="${mode==='login'?'current-password':'new-password'}" placeholder="Enter your password"></div><div id="signupFields" class="${mode==='login'?'hidden':''}"><div class="field"><label class="label">Full name</label><input id="authName" placeholder="Your full name" ${mode==='signup'?'required':''}></div>${role==='shopkeeper'?'<div class="field"><label class="label">Shop name</label><input id="authShop" placeholder="Your business / shop name" required></div>':''}<div class="field"><label class="label">Referral code (optional)</label><input id="authReferral" placeholder="Referral code"></div></div>
  <div style="border:1px solid var(--line);border-radius:14px;padding:13px;margin:14px 0;background:var(--surface)"><div style="font-weight:800;margin-bottom:8px">TERMS &amp; CONDITIONS, USER RESPONSIBILITY AND DISCLAIMER</div><div style="max-height:190px;overflow:auto;padding:0 5px 0 0;font-size:12px;line-height:1.65;color:var(--muted)">
  <p><b>1. Acceptance and Eligibility.</b> By creating an account, logging in, browsing, listing a business or product, making a booking, or otherwise using MarketOS (“Platform”), you confirm that you have read and understood these Terms and agree to comply with them and applicable laws. If you do not agree, do not use the Platform. You are responsible for ensuring that you are legally eligible to use the services.</p>
  <p><b>2. Platform Role.</b> MarketOS may provide discovery, listing, communication, booking, referral and related marketplace features. Unless a separate written agreement expressly states otherwise, the Platform is a technology and information intermediary and is not itself the seller, buyer, service provider, delivery provider, payment institution or guarantor of any third-party product, service, business, listing, booking or transaction. Users must independently verify the identity, authority, quality, legality, price, availability and suitability of other users and their offers.</p>
@@ -129,7 +129,46 @@ async function ownerAdminSubmit(e){
 }
 
 function closeModal(){document.getElementById('modalRoot').innerHTML=''}
-async function authSubmit(e){e.preventDefault();const email=document.getElementById('authEmail').value.trim().toLowerCase(),password=document.getElementById('authPassword').value;try{if(LIVE){if(authMode==='login'){const {data,error}=await sb.auth.signInWithPassword({email,password});if(error)throw error;user=data.user;await loadProfile()}else{const name=document.getElementById('authName')?.value.trim()||'',shopName=document.getElementById('authShop')?.value.trim()||'',ref=document.getElementById('authReferral')?.value.trim()||'';if(!name)return toast('Name enter karein');const {data,error}=await sb.auth.signUp({email,password,options:{data:{full_name:name,role:authRole,shop_name:shopName,referral_code:ref}}});if(error)throw error;if(data.user){user=data.user;await loadProfile();closeModal();toast('Account created. Email verification/activation steps complete karein.');go('account');return}}}else{if(authMode==='login'){const u=demo.users.find(x=>x.email===email&&x.password===password&&x.role===authRole);if(!u)throw Error('Demo account nahi mila. Pehle signup karein.');user=u;profile=u}else{const name=document.getElementById('authName')?.value.trim()||'';if(!name)throw Error('Naam enter karein');const u={id:id(),email,password,name,role:authRole,shopName:document.getElementById('authShop')?.value.trim()||'',status:'payment_pending',referralCode:Math.random().toString(36).slice(2,8).toUpperCase(),created_at:new Date().toISOString()};demo.users.push(u);profile=user=u;saveDemo();const ref=document.getElementById('authReferral')?.value.trim();if(ref)demo.referrals.push({id:id(),referrerCode:ref,inviteeId:u.id,kind:authRole,status:'pending',created_at:new Date().toISOString()});saveDemo();closeModal();toast('Account bana. Ab payment request submit karein.');go('account');return}}closeModal();syncHeader();go(profile?.role==='shopkeeper'?'seller':'account');toast('Login successful')}catch(err){toast(err.message||'Login failed')}}
+function normalizeMobile(value){
+ let digits=String(value||'').replace(/\D/g,'');
+ if(digits.length===10)return '+91'+digits;
+ if(digits.length===12&&digits.startsWith('91'))return '+'+digits;
+ if(String(value||'').trim().startsWith('+')&&digits.length>=10&&digits.length<=15)return '+'+digits;
+ throw Error('Please enter a valid mobile number with country code, or a 10-digit Indian mobile number.');
+}
+async function authSubmit(e){
+ e.preventDefault();
+ let phone;try{phone=normalizeMobile(document.getElementById('authPhone').value)}catch(err){toast(err.message);return}
+ const password=document.getElementById('authPassword').value;
+ try{
+  if(LIVE){
+   if(authMode==='login'){
+    const {data,error}=await sb.auth.signInWithPassword({phone,password});if(error)throw error;
+    user=data.user;await loadProfile();
+   }else{
+    const name=document.getElementById('authName')?.value.trim()||'',shopName=document.getElementById('authShop')?.value.trim()||'',ref=document.getElementById('authReferral')?.value.trim()||'';
+    if(!name)throw Error('Please enter your full name.');
+    const {data,error}=await sb.auth.signUp({phone,password,options:{data:{full_name:name,role:authRole,shop_name:shopName,referral_code:ref}}});if(error)throw error;
+    if(data.user){
+     user=data.user;try{await loadProfile()}catch(profileError){console.warn(profileError)}
+     closeModal();toast(data.session?'Account created successfully.':'Account created. Complete the SMS OTP/phone verification if prompted.');
+     if(data.session)go('account');return;
+    }
+   }
+  }else{
+   if(authMode==='login'){
+    const u=demo.users.find(x=>normalizeMobile(x.phone||'')===phone&&x.password===password&&x.role===authRole);
+    if(!u)throw Error('No demo account found for this mobile number and role. Please sign up first.');user=u;profile=u;
+   }else{
+    const name=document.getElementById('authName')?.value.trim()||'';if(!name)throw Error('Please enter your full name.');
+    if(demo.users.some(x=>{try{return normalizeMobile(x.phone||'')===phone}catch{return false}}))throw Error('This mobile number is already registered. Please log in.');
+    const u={id:id(),phone,password,name,role:authRole,shopName:document.getElementById('authShop')?.value.trim()||'',status:'payment_pending',referralCode:Math.random().toString(36).slice(2,8).toUpperCase(),created_at:new Date().toISOString()};
+    demo.users.push(u);profile=user=u;saveDemo();const ref=document.getElementById('authReferral')?.value.trim();if(ref)demo.referrals.push({id:id(),referrerCode:ref,inviteeId:u.id,kind:authRole,status:'pending',created_at:new Date().toISOString()});saveDemo();closeModal();toast('Account created. Submit the payment request from your account.');go('account');return;
+   }
+  }
+  closeModal();syncHeader();go(profile?.role==='shopkeeper'?'seller':'account');toast('Login successful');
+ }catch(err){toast(err.message||'Login failed')}
+}
 async function loadProfile(){
  if(!LIVE||!user)return;
  const {data,error}=await sb.from('profiles').select('*').eq('id',user.id).maybeSingle();
